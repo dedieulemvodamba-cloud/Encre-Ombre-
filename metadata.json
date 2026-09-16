@@ -1,0 +1,6 @@
+{
+  "name": "Encre & Ombre",
+  "description": "Plateforme littéraire et bibliothèque immersive de récits à suspense, romance sombre et littérature fantastique.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
