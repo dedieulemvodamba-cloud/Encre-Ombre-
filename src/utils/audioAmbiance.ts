@@ -1,14 +1,95 @@
 /**
- * Web Audio API procedural soundscape generator for nighttime reading.
- * Generates soft night breeze and gentle fire crackle without any external audio files.
+ * Ambiance nocturne audio manager for Encre & Ombre.
+ * Plays the 2-minute (120s) nocturnal rain and storm soundscape with Web Audio fallback.
  */
+
+export interface AudioState {
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  volume: number;
+}
+
+type AudioListener = (state: AudioState) => void;
+
 class AmbianceSoundscape {
-  private ctx: AudioContext | null = null;
+  private audio: HTMLAudioElement | null = null;
   private isPlaying: boolean = false;
+  private duration: number = 120; // 2 minutes strict
+  private volume: number = 0.65;
+  private listeners: Set<AudioListener> = new Set();
+  private timeUpdateInterval: number | null = null;
+
+  // Web Audio API fallback in case HTMLAudioElement is unavailable
+  private ctx: AudioContext | null = null;
   private gainNode: GainNode | null = null;
   private noiseNode: AudioBufferSourceNode | null = null;
-  private filterNode: BiquadFilterNode | null = null;
-  private crackleInterval: number | null = null;
+  private usingFallback: boolean = false;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      try {
+        this.audio = new Audio('/audio/ambiance-nocturne.mp3');
+        this.audio.loop = false;
+        this.audio.volume = this.volume;
+
+        this.audio.addEventListener('timeupdate', () => {
+          if (!this.audio) return;
+          if (this.audio.currentTime >= 120) {
+            this.stop();
+            this.audio.currentTime = 0;
+          }
+          this.notifyListeners();
+        });
+
+        this.audio.addEventListener('ended', () => {
+          this.stop();
+        });
+
+        this.audio.addEventListener('pause', () => {
+          if (this.isPlaying) {
+            this.isPlaying = false;
+            this.notifyListeners();
+          }
+        });
+
+        this.audio.addEventListener('play', () => {
+          this.isPlaying = true;
+          this.notifyListeners();
+        });
+      } catch {
+        this.audio = null;
+      }
+    }
+  }
+
+  public subscribe(listener: AudioListener): () => void {
+    this.listeners.add(listener);
+    listener(this.getState());
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notifyListeners() {
+    const state = this.getState();
+    this.listeners.forEach((listener) => {
+      try {
+        listener(state);
+      } catch {
+        // ignore listener errors
+      }
+    });
+  }
+
+  public getState(): AudioState {
+    return {
+      isPlaying: this.isPlaying,
+      currentTime: this.audio ? Math.min(this.audio.currentTime, 120) : 0,
+      duration: this.duration,
+      volume: this.volume
+    };
+  }
 
   public toggle(): boolean {
     if (this.isPlaying) {
@@ -24,7 +105,69 @@ class AmbianceSoundscape {
     return this.isPlaying;
   }
 
+  public setVolume(val: number) {
+    const clamped = Math.max(0, Math.min(1, val));
+    this.volume = clamped;
+    if (this.audio) {
+      this.audio.volume = clamped;
+    }
+    if (this.gainNode && this.ctx) {
+      this.gainNode.gain.setValueAtTime(clamped * 0.3, this.ctx.currentTime);
+    }
+    this.notifyListeners();
+  }
+
+  public getVolume(): number {
+    return this.volume;
+  }
+
+  public seek(seconds: number) {
+    const target = Math.max(0, Math.min(120, seconds));
+    if (this.audio) {
+      this.audio.currentTime = target;
+      this.notifyListeners();
+    }
+  }
+
   public start() {
+    if (this.audio) {
+      // If at end of 2 minutes, restart from beginning
+      if (this.audio.currentTime >= 120) {
+        this.audio.currentTime = 0;
+      }
+      this.audio.volume = this.volume;
+      this.audio
+        .play()
+        .then(() => {
+          this.isPlaying = true;
+          this.usingFallback = false;
+          this.notifyListeners();
+        })
+        .catch(() => {
+          // Autoplay policy or format fallback to Web Audio API
+          this.startWebAudioFallback();
+        });
+    } else {
+      this.startWebAudioFallback();
+    }
+  }
+
+  public stop() {
+    if (this.audio) {
+      try {
+        this.audio.pause();
+      } catch {
+        // ignore
+      }
+    }
+    if (this.usingFallback) {
+      this.stopWebAudioFallback();
+    }
+    this.isPlaying = false;
+    this.notifyListeners();
+  }
+
+  private startWebAudioFallback() {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!this.ctx) {
@@ -39,7 +182,6 @@ class AmbianceSoundscape {
       const buffer = this.ctx.createBuffer(1, bufferSize, sampleRate);
       const data = buffer.getChannelData(0);
 
-      // Pink noise synthesis for gentle rain / breeze
       let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
       for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;
@@ -57,66 +199,43 @@ class AmbianceSoundscape {
       this.noiseNode.buffer = buffer;
       this.noiseNode.loop = true;
 
-      // Low pass filter to create a warm, muffled nocturnal sound
-      this.filterNode = this.ctx.createBiquadFilter();
-      this.filterNode.type = 'lowpass';
-      this.filterNode.frequency.setValueAtTime(450, this.ctx.currentTime);
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(500, this.ctx.currentTime);
 
       this.gainNode = this.ctx.createGain();
-      this.gainNode.gain.setValueAtTime(0.01, this.ctx.currentTime);
-      this.gainNode.gain.exponentialRampToValueAtTime(0.2, this.ctx.currentTime + 2);
+      this.gainNode.gain.setValueAtTime(this.volume * 0.25, this.ctx.currentTime);
 
-      this.noiseNode.connect(this.filterNode);
-      this.filterNode.connect(this.gainNode);
+      this.noiseNode.connect(filter);
+      filter.connect(this.gainNode);
       this.gainNode.connect(this.ctx.destination);
       this.noiseNode.start();
 
-      // Occasional faint crackles (candle / fireplace feel)
-      this.crackleInterval = window.setInterval(() => {
-        if (!this.ctx || !this.isPlaying) return;
-        if (Math.random() > 0.4) {
-          const osc = this.ctx.createOscillator();
-          const popGain = this.ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(150 + Math.random() * 200, this.ctx.currentTime);
-          popGain.gain.setValueAtTime(0.03, this.ctx.currentTime);
-          popGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
-          osc.connect(popGain);
-          popGain.connect(this.ctx.destination);
-          osc.start();
-          osc.stop(this.ctx.currentTime + 0.06);
-        }
-      }, 400);
-
       this.isPlaying = true;
+      this.usingFallback = true;
+      this.notifyListeners();
     } catch {
       this.isPlaying = false;
     }
   }
 
-  public stop() {
+  private stopWebAudioFallback() {
     if (this.gainNode && this.ctx) {
       try {
-        this.gainNode.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.8);
-        setTimeout(() => {
-          if (this.noiseNode) {
-            try {
-              this.noiseNode.stop();
-              this.noiseNode.disconnect();
-            } catch {
-              // ignore
-            }
-          }
-        }, 800);
+        this.gainNode.gain.setValueAtTime(0.001, this.ctx.currentTime);
       } catch {
         // ignore
       }
     }
-    if (this.crackleInterval) {
-      clearInterval(this.crackleInterval);
-      this.crackleInterval = null;
+    if (this.noiseNode) {
+      try {
+        this.noiseNode.stop();
+        this.noiseNode.disconnect();
+      } catch {
+        // ignore
+      }
     }
-    this.isPlaying = false;
+    this.usingFallback = false;
   }
 }
 

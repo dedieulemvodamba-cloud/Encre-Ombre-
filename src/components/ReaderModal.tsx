@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Story } from '../data/stories';
-import { X, ExternalLink, Type, Sun, Moon, ArrowLeft, ArrowRight, Bookmark, Volume2, VolumeX } from 'lucide-react';
+import { X, ExternalLink, Type, Sun, Moon, ArrowLeft, ArrowRight, Bookmark, Volume2, VolumeX, CloudRain } from 'lucide-react';
 import { ambianceSoundscape } from '../utils/audioAmbiance';
 
 interface ReaderModalProps {
@@ -12,13 +12,19 @@ export const ReaderModal: React.FC<ReaderModalProps> = ({ story, onClose }) => {
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [fontSize, setFontSize] = useState<number>(18);
   const [readerTheme, setReaderTheme] = useState<'dark' | 'indigo' | 'sepia'>('dark');
-  const [soundActive, setSoundActive] = useState(false);
+  const [soundActive, setSoundActive] = useState(ambianceSoundscape.getStatus());
+
+  useEffect(() => {
+    const unsubscribe = ambianceSoundscape.subscribe((state) => {
+      setSoundActive(state.isPlaying);
+    });
+    return unsubscribe;
+  }, []);
 
   const chapter = story.chapters[currentChapterIndex] || story.chapters[0];
 
   const toggleSound = () => {
-    const active = ambianceSoundscape.toggle();
-    setSoundActive(active);
+    ambianceSoundscape.toggle();
   };
 
   const getThemeStyles = () => {
@@ -184,19 +190,22 @@ export const ReaderModal: React.FC<ReaderModalProps> = ({ story, onClose }) => {
               margin: '0 auto'
             }}
           >
-            {chapter.text.map((paragraph, idx) => (
-              <p key={idx} className="indent-6 first-of-type:indent-0">
-                {idx === 0 && (
-                  <span
-                    className="float-left text-5xl sm:text-6xl font-serif pr-3 pt-1 leading-none font-medium"
-                    style={{ color: currentStyles.accent, fontFamily: "'Fraunces', Georgia, serif" }}
-                  >
-                    {paragraph.charAt(0)}
-                  </span>
-                )}
-                {idx === 0 ? paragraph.slice(1) : paragraph}
-              </p>
-            ))}
+            {chapter.text.map((paragraph, idx) => {
+              const shouldDropCap = idx === 0 && /^[a-zA-ZÀ-ÿ]/.test(paragraph.charAt(0));
+              return (
+                <p key={idx} className="indent-6 first-of-type:indent-0 leading-relaxed">
+                  {shouldDropCap && (
+                    <span
+                      className="float-left text-5xl sm:text-6xl font-serif pr-3 pt-1 leading-none font-medium"
+                      style={{ color: currentStyles.accent, fontFamily: "'Fraunces', Georgia, serif" }}
+                    >
+                      {paragraph.charAt(0)}
+                    </span>
+                  )}
+                  {shouldDropCap ? paragraph.slice(1) : paragraph}
+                </p>
+              );
+            })}
           </div>
 
           {/* End of Chapter notice */}

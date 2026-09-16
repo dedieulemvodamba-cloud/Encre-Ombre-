@@ -156,7 +156,7 @@ export const UniversSection: React.FC<UniversSectionProps> = ({ onSelectStory })
                     : 'border border-[#c9a24b]/30 text-[#a9a4b8] hover:border-[#c9a24b] hover:text-[#f3e8d0]'
                 }`}
               >
-                Toutes
+                Toutes ({STORIES.length})
               </button>
               <button
                 onClick={() => setActiveFilter('romance')}
@@ -166,7 +166,7 @@ export const UniversSection: React.FC<UniversSectionProps> = ({ onSelectStory })
                     : 'border border-[#c9a24b]/30 text-[#a9a4b8] hover:border-[#c9a24b] hover:text-[#f3e8d0]'
                 }`}
               >
-                Romance Sombre
+                Romance &amp; Passion
               </button>
               <button
                 onClick={() => setActiveFilter('thriller')}
@@ -176,17 +176,27 @@ export const UniversSection: React.FC<UniversSectionProps> = ({ onSelectStory })
                     : 'border border-[#c9a24b]/30 text-[#a9a4b8] hover:border-[#c9a24b] hover:text-[#f3e8d0]'
                 }`}
               >
-                Thriller
+                Thriller &amp; Horreur
               </button>
               <button
-                onClick={() => setActiveFilter('fantastique')}
+                onClick={() => setActiveFilter('mystere')}
                 className={`px-3.5 py-1.5 rounded text-xs tracking-wider transition-all uppercase ${
-                  activeFilter === 'fantastique'
+                  activeFilter === 'mystere'
                     ? 'bg-[#c9a24b] text-[#14121b] font-semibold shadow-md'
                     : 'border border-[#c9a24b]/30 text-[#a9a4b8] hover:border-[#c9a24b] hover:text-[#f3e8d0]'
                 }`}
               >
-                Fantastique
+                Mystère Ésotérique
+              </button>
+              <button
+                onClick={() => setActiveFilter('conte')}
+                className={`px-3.5 py-1.5 rounded text-xs tracking-wider transition-all uppercase ${
+                  activeFilter === 'conte'
+                    ? 'bg-[#c9a24b] text-[#14121b] font-semibold shadow-md'
+                    : 'border border-[#c9a24b]/30 text-[#a9a4b8] hover:border-[#c9a24b] hover:text-[#f3e8d0]'
+                }`}
+              >
+                Contes &amp; Rêves
               </button>
             </div>
           </div>

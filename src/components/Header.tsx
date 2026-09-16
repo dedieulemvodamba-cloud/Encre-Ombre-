@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ENCRE_ET_OMBRE_LOGO } from '../data/logo';
-import { Volume2, VolumeX, Sun, Moon, ExternalLink, Menu, X, BookOpen } from 'lucide-react';
+import { Volume2, VolumeX, Sun, Moon, ExternalLink, Menu, X, BookOpen, CloudRain } from 'lucide-react';
 import { ambianceSoundscape } from '../utils/audioAmbiance';
 
 interface HeaderProps {
@@ -13,9 +13,15 @@ export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme, onOpenRead
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [soundActive, setSoundActive] = useState(false);
 
+  useEffect(() => {
+    const unsubscribe = ambianceSoundscape.subscribe((state) => {
+      setSoundActive(state.isPlaying);
+    });
+    return unsubscribe;
+  }, []);
+
   const toggleSound = () => {
-    const active = ambianceSoundscape.toggle();
-    setSoundActive(active);
+    ambianceSoundscape.toggle();
   };
 
   return (
@@ -110,10 +116,10 @@ export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme, onOpenRead
                 ? 'bg-[#c9a24b]/20 border-[#c9a24b] text-[#dcc074]'
                 : 'border-white/10 text-[#a9a4b8] hover:border-[#c9a24b]/40 hover:text-[#f3e8d0]'
             }`}
-            title={soundActive ? 'Désactiver l’ambiance nocturne' : 'Activer l’ambiance feu & brise de nuit'}
+            title={soundActive ? 'Désactiver l’ambiance pluie nocturne' : 'Activer l’ambiance pluie & orage (2 min)'}
           >
-            {soundActive ? <Volume2 className="w-3.5 h-3.5 animate-pulse text-[#c9a24b]" /> : <VolumeX className="w-3.5 h-3.5" />}
-            <span className="text-[11px] font-sans">{soundActive ? 'Feu de nuit' : 'Ambiance'}</span>
+            {soundActive ? <CloudRain className="w-3.5 h-3.5 animate-pulse text-[#c9a24b]" /> : <VolumeX className="w-3.5 h-3.5" />}
+            <span className="text-[11px] font-sans">{soundActive ? 'Pluie (2m)' : 'Ambiance'}</span>
           </button>
 
           {/* Theme switcher */}
