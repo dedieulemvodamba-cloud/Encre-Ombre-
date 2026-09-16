@@ -9,6 +9,7 @@ import { AppDownloadBanner } from './components/AppDownloadBanner';
 import { Footer } from './components/Footer';
 import { ReaderModal } from './components/ReaderModal';
 import { STORIES, Story } from './data/stories';
+import WelcomeIntro from './components/WelcomeIntro';
 
 export default function App() {
   const [theme, setTheme] = useState<'dark' | 'parchment'>('dark');
@@ -40,6 +41,9 @@ export default function App() {
         '--text': theme === 'dark' ? '#f3e8d0' : '#1c1930'
       } as React.CSSProperties}
     >
+      {/* Intro poétique d'accueil */}
+      <WelcomeIntro />
+
       {/* Central subtle vintage book spine line (hidden on small screens) */}
       <div
         className="hidden lg:block absolute top-0 bottom-0 left-1/2 w-px pointer-events-none z-0 -translate-x-1/2"
